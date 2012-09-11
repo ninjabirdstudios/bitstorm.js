@@ -132,7 +132,8 @@ bitstorm.handleDOMContentLoaded = function ()
             load     : [
                 bitstorm.scriptPath+'bitstorm.core.js',
                 bitstorm.scriptPath+'bitstorm.content.shared.js',
-                bitstorm.scriptPath+'bitstorm.content.client.js'
+                bitstorm.scriptPath+'bitstorm.content.server.js',
+                bitstorm.scriptPath+'bitstorm.content.client.js',
             ],
             complete : function () {
                 // all of the core files listed in the 'load' array have

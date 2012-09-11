@@ -91,7 +91,7 @@ BitstormEmitter.prototype.removeAllListeners = function (event)
 {
     var  listeners   = this.listeners || {};
     this.listeners   = this.listeners || listeners;
-    listeners[event] = [];
+    listeners[event] = null;
     return this;
 };
 
