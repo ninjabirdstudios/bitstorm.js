@@ -133,7 +133,7 @@ var WebGL = (function (exports)
         if (uniforms_frag)
         {
             // uniforms from the fragment shader.
-            for (var i = 0; i < uniformsFrag.length; ++i)
+            for (var i = 0; i < uniforms_frag.length; ++i)
             {
                 var uniform      = uniforms_frag[i].split(uniform_match);
                 var uniform_type = uniform[1];
@@ -302,8 +302,8 @@ var WebGL = (function (exports)
         }
 
         // reflect the shader uniforms and attributes.
-        webgl_reflect_uniforms  (ref, vertex_source, fragment_source);
-        webgl_reflect_attributes(ref, vertex_source, fragment_source);
+        reflectUniforms  (ref, vertex_source, fragment_source);
+        reflectAttributes(ref, vertex_source, fragment_source);
 
         // create the shader program with vertex and fragment shaders attached.
         var po = gl.createProgram();
@@ -356,7 +356,7 @@ var WebGL = (function (exports)
     {
         var     gl   = ref.webglContext;
         var     glsl = type_names;
-        var     flip = transpose ? gl.TRUE : gl.FALSE;
+        var     flip = transpose ? true : false;
         var     bind = ref.uniformLocations[uniform_name];
         var     type = ref.uniformTypes[uniform_name];
         switch (type)
@@ -444,8 +444,8 @@ var WebGL = (function (exports)
     /// @return The number of levels in the mipmap chain.
     function mipLevelCount(width, height)
     {
-        size_t level_count = 0;
-        size_t major_dim   = 0;
+        var level_count = 0;
+        var major_dim   = 0;
 
         // select largest of (width, height).
         major_dim = (width > height) ? width : height;
@@ -469,8 +469,8 @@ var WebGL = (function (exports)
     /// obj.height The height of the specified mipmap level, in pixels.
     function mipLevelDimensions(width, height, index)
     {
-        int level_width  = width  >> index;
-        int level_height = height >> index;
+        var level_width  = width  >> index;
+        var level_height = height >> index;
         return {
             width        : (0 === level_width)  ? 1 : level_width,
             height       : (0 === level_height) ? 1 : level_height
@@ -615,14 +615,16 @@ var WebGL = (function (exports)
 
     /// Uploads the complete mip-chain for a texture to the GPU.
     /// @param ref A WebGL texture object instance. See textureConstructor().
-    /// @param data An ArrayBuffer storing the raw data for each mip-level.
+    /// @param data A Uint8Array view storing the raw data for each mip-level.
     function uploadTexture(ref, data)
     {
         var gl       = ref.webglContext;
         var type     = ref.dataType;
         var format   = ref.format;
         var target   = ref.textureTarget;
-        gl.bindTexture(ref.bindTexture, ref.textureResource);
+        var buffer   = data.buffer;
+        var baseOfs  = data.byteOffset;
+        gl.bindTexture(ref.bindTarget, ref.textureResource);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
@@ -631,18 +633,18 @@ var WebGL = (function (exports)
             var ld   = ref.levels[i];
             var lw   = ld.width;
             var lh   = ld.height;
-            var ofs  = ld.byteOffset;
+            var ofs  = ld.byteOffset + baseOfs;
             var size = ld.byteSize;
             var view = null;
             switch (type)
             {
                 case gl.UNSIGNED_BYTE:
-                    view = new Uint8Array(data, ofs, size);
+                    view = new Uint8Array(buffer, ofs, size);
                     break;
                 case gl.UNSIGNED_SHORT_5_6_5:
                 case gl.UNSIGNED_SHORT_5_5_5_1:
                 case gl.UNSIGNED_SHORT_4_4_4_4:
-                    view = new Uint16Array(data, ofs, size >> 1);
+                    view = new Uint16Array(buffer, ofs, size >> 1);
                     break;
 
                 default: break;
@@ -661,7 +663,7 @@ var WebGL = (function (exports)
         var gl       = ref.webglContext;
         var type     = ref.dataType;
         var format   = ref.format;
-        gl.bindTexture(ref.bindTexture, ref.textureResource);
+        gl.bindTexture(ref.bindTarget, ref.textureResource);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
@@ -683,8 +685,8 @@ var WebGL = (function (exports)
     /// level object has width, height, byteSize and byteOffset fields.
     /// @param sLevel The zero-based index of the source mip-level, where level
     /// zero represents the highest resolution image.
-    /// @param data An ArrayBuffer storing the raw data for each mip-level of
-    /// the source image.
+    /// @param data A Uint8Array view storing the raw data for each mip-level
+    /// of the source image.
     function uploadTextureRegion(target, tX, tY, tLevel, source, sLevel, data)
     {
         var gl       = target.webglContext;
@@ -694,23 +696,23 @@ var WebGL = (function (exports)
         var level    = source.levels[sLevel];
         var lw       = level.width;
         var lh       = level.height;
-        var ofs      = level.byteOffset;
+        var ofs      = level.byteOffset + data.byteOffset;
         var size     = level.byteSize;
         var view     = null;
         switch (type)
         {
             case gl.UNSIGNED_BYTE:
-                view = new Uint8Array(data, ofs, size);
+                view = new Uint8Array(data.buffer, ofs, size);
                 break;
             case gl.UNSIGNED_SHORT_5_6_5:
             case gl.UNSIGNED_SHORT_5_5_5_1:
             case gl.UNSIGNED_SHORT_4_4_4_4:
-                view = new Uint16Array(data, ofs, size >> 1);
+                view = new Uint16Array(data.buffer, ofs, size >> 1);
                 break;
 
             default: break;
         }
-        gl.bindTexture(target.bindTexture, target.textureResource);
+        gl.bindTexture(target.bindTarget, target.textureResource);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
@@ -750,5 +752,16 @@ var WebGL = (function (exports)
     }
 
     /// Set functions and types exported from the module.
+    exports.createContext       = createContext;
+    exports.programConstructor  = programConstructor;
+    exports.programDestructor   = programDestructor;
+    exports.textureConstructor  = textureConstructor;
+    exports.textureDestructor   = textureDestructor;
+    exports.buildProgram        = buildProgram;
+    exports.bindUniform         = bindUniform;
+    exports.createTexture       = createTexture;
+    exports.uploadTexture       = uploadTexture;
+    exports.uploadTextureDOM    = uploadTextureDOM;
+    exports.uploadTextureRegion = uploadTextureRegion;
     return exports;
 }  (WebGL || {}));
